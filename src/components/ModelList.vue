@@ -35,51 +35,42 @@
   </v-slide-y-reverse-transition>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 import { useDisplay } from 'vuetify';
-import { ModelEntity } from '@/app/ModelEntity';
-import { App } from '@/app/App';
+import { useAppStore } from '@/store/app';
 
-export default defineComponent({
-    name: "ModelList",
-    props: {
-        modelValue: Number,
-        show: Boolean,
-    },
-    setup() {
-        const display = useDisplay();
-        return { display };
-    },
-    data: () => ({
-        models: [] as ModelEntity[],
-    }),
-    computed: {
-        paneHeight() {
-            return this.display.xl ? 192 : 144;
-        },
-        selectedIndex() {
-            return this.models.findIndex(model => model.id === this.modelValue);
-        },
-    },
-    created() {
-        this.models = App.models;
-    },
-    methods: {
-        select(index: number) {
-            const id = this.models[index]?.id ?? 0;
+const props = defineProps<{
+    modelValue: number;
+    show: boolean;
+}>();
 
-            this.$emit('update:modelValue', id);
-        },
-        remove(id: number) {
-            if (this.models.length === 1) {
-                this.$emit('update:modelValue', 0);
-            }
+const emit = defineEmits(['update:modelValue']);
 
-            App.removeModel(id);
-        },
-    },
+const display = useDisplay();
+const appStore = useAppStore();
+
+const models = computed(() => appStore.models);
+
+const paneHeight = computed(() => {
+    return display.xl.value ? 192 : 144;
 });
+
+const selectedIndex = computed(() => {
+    return models.value.findIndex(model => model.id === props.modelValue);
+});
+
+function select(index: number) {
+    const id = models.value[index]?.id ?? 0;
+    emit('update:modelValue', id);
+}
+
+function remove(id: number) {
+    if (models.value.length === 1) {
+        emit('update:modelValue', 0);
+    }
+    appStore.removeModel(id);
+}
 </script>
 
 <style scoped lang="stylus">

@@ -8,7 +8,7 @@ export interface TreeNode {
     name: string;
     children?: TreeNode[];
     files?: string[];
-    error?: any;
+    error?: unknown;
     modelCount: number;
 }
 

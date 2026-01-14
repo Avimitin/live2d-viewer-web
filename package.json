@@ -9,6 +9,7 @@
   },
   "main": "index.js",
   "dependencies": {
+    "@mdi/font": "^7.0.0",
     "@pixi/filter-ascii": "^4.2.0",
     "@pixi/filter-crt": "^4.2.0",
     "@pixi/filter-outline": "^4.2.0",
@@ -21,13 +22,13 @@
     "jszip": "^3.10.1",
     "lodash-es": "^4.17.21",
     "node-fetch": "^3.3.2",
+    "pinia": "^3.0.4",
     "pixi-live2d-display": "^0.4.0",
     "pixi.js": "^6.5.10",
+    "roboto-fontface": "*",
     "stats.js": "^0.17.0",
     "vue": "^3.5.0",
-    "vuetify": "^3.7.0",
-    "@mdi/font": "^7.0.0",
-    "roboto-fontface": "*"
+    "vuetify": "^3.7.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-typescript": "~5.0.8",

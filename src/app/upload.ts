@@ -136,7 +136,7 @@ function createFakeSettings(files: File[]): ModelSettings {
     settings.name = modelName;
 
     // provide this property for FileLoader
-    (settings as any)._objectURL = 'DontTouchMe://' + settings.url;
+    (settings as ModelSettings & { _objectURL: string })._objectURL = 'DontTouchMe://' + settings.url;
 
     return settings;
 }

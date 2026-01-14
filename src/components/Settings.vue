@@ -30,55 +30,54 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { Background } from '@/tools/Background';
-import { App } from '@/app/App';
+import { useAppStore } from '@/store/app';
 
-export default defineComponent({
-    name: "Settings",
-    data: () => ({
-        volume: 0,
-        hitAreaFrames: false,
-        modelFrame: false,
-        stats: false,
-        lastUpdated: new Date(__BUILD_TIME__).toLocaleString(),
-        currentBackground: Background.current,
-    }),
-    watch: {
-        stats(value: boolean) {
-            App.showStats = value;
-        },
-        volume(value: number) {
-            App.volume = value;
-        },
-        hitAreaFrames(value: boolean) {
-            App.showHitAreaFrames = value;
-        },
-        modelFrame(value: boolean) {
-            App.showModelFrame = value;
-        },
-    },
-    created() {
-        this.stats = App.showStats;
-        this.volume = App.volume;
-        this.hitAreaFrames = App.showHitAreaFrames;
-        this.modelFrame = App.showModelFrame;
+declare const __BUILD_TIME__: number;
 
-        Background.emitter.on('change', this.backgroundChanged, this);
-    },
-    methods: {
-        resetBackground() {
-            Background.reset();
-        },
-        backgroundChanged(background: string) {
-            this.currentBackground = background;
-        },
-    },
-    beforeUnmount() {
-        Background.emitter.off('change', this.backgroundChanged);
-    },
+const appStore = useAppStore();
+
+const lastUpdated = new Date(__BUILD_TIME__).toLocaleString();
+const currentBackground = ref(Background.current);
+
+const volume = computed({
+    get: () => appStore.volume,
+    set: (val) => appStore.updateVolume(val),
 });
+
+const stats = computed({
+    get: () => appStore.showStats,
+    set: (val) => appStore.updateStatsVisibility(val),
+});
+
+const hitAreaFrames = computed({
+    get: () => appStore.showHitAreaFrames,
+    set: (val) => appStore.updateHitAreaFrames(val),
+});
+
+const modelFrame = computed({
+    get: () => appStore.showModelFrame,
+    set: (val) => appStore.updateModelFrame(val),
+});
+
+
+onMounted(() => {
+    Background.emitter.on('change', backgroundChanged);
+});
+
+onBeforeUnmount(() => {
+    Background.emitter.off('change', backgroundChanged);
+});
+
+function resetBackground() {
+    Background.reset();
+}
+
+function backgroundChanged(background: string) {
+    currentBackground.value = background;
+}
 </script>
 
 <style scoped lang="stylus">

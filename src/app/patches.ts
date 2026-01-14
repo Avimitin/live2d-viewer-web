@@ -19,6 +19,10 @@ import { getAlternativeURL, getSettingsJSON } from './data';
 import { CommonModelJSON } from '@/global';
 import { isMocFile, isMocFileV3 } from './helpers';
 
+interface PatchedInternalModel extends InternalModel {
+    init(): void;
+}
+
 // replace the XHRLoader to handle failures
 Live2DLoader.middlewares[Live2DLoader.middlewares.indexOf(XHRLoader.loader)] = async (context, next) => {
     const url = context.settings ? context.settings.resolveURL(context.url) : context.url;
@@ -27,7 +31,7 @@ Live2DLoader.middlewares[Live2DLoader.middlewares.indexOf(XHRLoader.loader)] = a
         await XHRLoader.loader(context, next);
         return;
     } catch (e) {
-        if (!(e && (e as any).status === 403 && url.includes('jsdelivr'))) {
+        if (!(e && typeof e === 'object' && 'status' in e && e.status === 403 && url.includes('jsdelivr'))) {
             throw e;
         }
 
@@ -44,14 +48,14 @@ Live2DLoader.middlewares[Live2DLoader.middlewares.indexOf(XHRLoader.loader)] = a
 // replace the default urlToJSON middleware
 Live2DFactory.live2DModelMiddlewares[Live2DFactory.live2DModelMiddlewares.indexOf(Live2DFactory.urlToJSON)] = urlToJSON;
 
-const defaultInit = (InternalModel.prototype as any).init as () => void;
+const defaultInit = (InternalModel.prototype as PatchedInternalModel).init;
 
-(InternalModel.prototype as any).init = async function () {
+(InternalModel.prototype as PatchedInternalModel).init = async function (this: PatchedInternalModel) {
     await patchInternalModel(this);
     defaultInit.call(this);
 };
 
-async function urlToJSON(context: Live2DFactoryContext, next: (err?: any) => Promise<void>) {
+async function urlToJSON(context: Live2DFactoryContext, next: (err?: unknown) => Promise<void>) {
     if (typeof context.source === 'string') {
 
         const url = context.source;
@@ -75,7 +79,7 @@ async function urlToJSON(context: Live2DFactoryContext, next: (err?: any) => Pro
                 // construct motion definitions from the plain string array
                 if (json3.FileReferences.Motions?.['']?.length && typeof json3.FileReferences.Motions[''][0] === 'string') {
                     json3.FileReferences.Motions[''] = json3.FileReferences.Motions[''].map(
-                        motionFile => ({ File: motionFile as any as string }),
+                        motionFile => ({ File: motionFile as unknown as string }),
                     );
                 }
             } else {
@@ -88,7 +92,7 @@ async function urlToJSON(context: Live2DFactoryContext, next: (err?: any) => Pro
                 // construct motion definitions from the plain string array
                 if (json2.motions?.['']?.length && typeof json2.motions[''][0] === 'string') {
                     json2.motions[''] = json2.motions[''].map(
-                        motionFile => ({ file: motionFile as any as string }),
+                        motionFile => ({ file: motionFile as unknown as string }),
                     );
                 }
             }
@@ -127,7 +131,7 @@ function replaceJSONText(jsonText: string, url: string) {
     return jsonText;
 }
 
-async function patchJSON(json: any, url: string) {
+async function patchJSON(json: CommonModelJSON, url: string) {
     for (const patch of patches) {
         if (url.includes(encodeURI(patch.search)) && patch.patch) {
             await patch.patch(json, url);
@@ -146,8 +150,8 @@ export async function patchInternalModel(internalModel: InternalModel) {
 const patches: {
     search: string;
     replace?: (jsonText: string, url: string) => string;
-    patch?: (json: any, url: string) => void | Promise<void>;
-    patchInternalModel?: (internalModel: any) => void | Promise<void>;
+    patch?: (json: CommonModelJSON, url: string) => void | Promise<void>;
+    patchInternalModel?: (internalModel: InternalModel) => void | Promise<void>;
 }[] = [{
     search: '魂器学院', // 魂器学院 Horcrux College
 
@@ -232,7 +236,7 @@ const patches: {
 
             if (json.motions) {
                 // rename `File` to `file` in each motion
-                for (const motionGroup of Object.values(json.motions) as any[][]) {
+                for (const motionGroup of Object.values(json.motions) as Record<string, string>[][]) {
                     if (motionGroup?.length) {
                         for (const motion of motionGroup) {
                             motion.file = motion.file ?? motion.File;
@@ -287,7 +291,7 @@ const patches: {
         // e.g. ParamAngleX -> PARAM_ANGLE_X
         for (const prop of Object.keys(internalModel) as (keyof Cubism4InternalModel)[]) {
             if (prop.startsWith('idParam')) {
-                (internalModel as any)[prop] = snakeCase(internalModel[prop] as string).toUpperCase();
+                (internalModel as any as Record<string, string>)[prop] = snakeCase(internalModel[prop] as string).toUpperCase();
             }
         }
     },

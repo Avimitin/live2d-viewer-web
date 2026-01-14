@@ -1,5 +1,5 @@
 <template>
-  <div class="model-editor" v-if="model">
+  <div class="model-editor" v-if="model" ref="rootElement">
     <v-list expand v-if="hasPixiModel" v-model:opened="openedGroups">
       <v-list-group value="display">
         <template v-slot:activator="{ props }">
@@ -30,7 +30,7 @@
           <template v-for="motionGroup in motionGroups" :key="motionGroup.name">
             <v-list-subheader class="px-3">{{ motionGroup.name || '(Nameless)' }}</v-list-subheader>
             <v-list-item ripple v-for="(motion,i) in motionGroup.motions" :key="motionGroup.name+i"
-                :data-set="active=motionState.currentGroup===motionGroup.name&&motionState.currentIndex===i"
+                :data-set="active=motionState?.currentGroup===motionGroup.name&&motionState?.currentIndex===i"
                 :disabled="!!motion.error" @click="startMotion(motionGroup,i)">
               <div v-if="active" class="motion-progress"></div>
               <v-list-item-content>
@@ -40,8 +40,8 @@
               </v-list-item-content>
               <template v-slot:append>
                 <v-icon size="32" color="primary" v-if="active">mdi-play</v-icon>
-                <v-progress-circular indeterminate size="20" width="2" v-else-if="(motionState.reservedGroup===motionGroup.name&&motionState.reservedIndex===i)
-                    ||(motionState.reservedIdleGroup===motionGroup.name&&motionState.reservedIdleIndex===i)" />
+                <v-progress-circular indeterminate size="20" width="2" v-else-if="(motionState?.reservedGroup===motionGroup.name&&motionState?.reservedIndex===i)
+                    ||(motionState?.reservedIdleGroup===motionGroup.name&&motionState?.reservedIdleIndex===i)" />
               </template>
             </v-list-item>
           </template>
@@ -95,181 +95,172 @@
   </div>
 </template>
 
-<script lang="ts">
-import { App } from '@/app/App';
+<script setup lang="ts">
+import { useAppStore } from '@/store/app';
 import { Filter } from '@/app/Filter';
 import { Live2DModel } from '@/app/Live2DModel';
 import { ModelEntity } from '@/app/ModelEntity';
 import { clamp } from 'lodash-es';
 import { MotionPriority, MotionState } from 'pixi-live2d-display';
-import { defineComponent } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
 interface MotionGroupEntry {
     name: string
     motions: {
         file: string;
-        error?: any;
+        error?: unknown;
     }[]
 }
 
 interface ExpressionEntry {
     file: string;
-    error?: any;
+    error?: unknown;
 }
 
-export default defineComponent({
-    name: 'ModelEditor',
-    props: {
-        id: {
-            type: Number,
-            default: 0,
-        },
-        visible: Boolean,
+const props = defineProps({
+    id: {
+        type: Number,
+        default: 0,
     },
-    data: () => ({
-        model: null as ModelEntity | null | undefined,
-
-        openedGroups: ['display'], // Default open 'display'
-        motionGroups: [] as MotionGroupEntry[],
-        motionState: null as MotionState | null | undefined,
-
-        motionProgressTimerID: -1,
-
-        expressions: [] as ExpressionEntry[],
-        currentExpressionIndex: -1,
-        pendingExpressionIndex: -1,
-
-        filters: Object.keys(Filter.filters),
-    }),
-    computed: {
-        hasPixiModel(): boolean {
-            return !!this.motionState;
-        },
-        rotationDeg(): string {
-            return Math.round((this.model?.rotation || 0) / Math.PI * 180) + '°';
-        },
-        motionExpand(): boolean {
-            return this.openedGroups.includes('motions');
-        }
-    },
-    watch: {
-        id: {
-            immediate: true,
-            handler() {
-                this.updateModel();
-            },
-        },
-        'model.filters'() {
-            this.model?.updateFilters();
-        },
-
-        // immediately update progress when current motion has changed
-        'motionState.currentGroup': 'updateMotionProgress',
-    },
-    mounted() {
-        this.motionProgressTimerID = setInterval(this.updateMotionProgress, 50);
-    },
-    methods: {
-        updateModel() {
-            this.resetModel();
-
-            this.model = App.getModel(this.id);
-
-            if (this.model) {
-                if (this.model.pixiModel) {
-                    this.pixiModelLoaded(this.model.pixiModel);
-                } else {
-                    this.model.once('modelLoaded', this.pixiModelLoaded);
-                }
-            }
-        },
-        resetModel() {
-            if (this.model) {
-                this.model.off('modelLoaded', this.pixiModelLoaded);
-                this.model.pixiModel?.off('expressionSet', this.expressionSet);
-                this.model.pixiModel?.off('expressionReserved', this.expressionReserved);
-                this.model.pixiModel?.internalModel.motionManager?.off('motionLoadError', this.motionLoadError);
-                this.model.pixiModel?.internalModel.motionManager?.expressionManager?.off('expressionLoadError', this.expressionLoadError);
-
-                this.motionGroups = [];
-                this.motionState = undefined;
-                this.model = undefined;
-            }
-        },
-        pixiModelLoaded(pixiModel: Live2DModel) {
-            const motionManager = pixiModel.internalModel.motionManager;
-            const motionGroups: MotionGroupEntry[] = [];
-
-            const definitions = motionManager.definitions;
-
-            for (const [group, motions] of Object.entries(definitions)) {
-                motionGroups.push({
-                    name: group,
-                    motions: motions?.map((motion, index) => ({
-                        file: motion.file || motion.File || '',
-                        error: motionManager.motionGroups[group]![index]! === null ? 'Failed to load' : undefined,
-                    })) || [],
-                });
-            }
-
-            this.motionGroups = motionGroups;
-            this.motionState = motionManager.state;
-
-            const expressionManager = motionManager.expressionManager;
-            this.expressions = expressionManager?.definitions.map((expression, index) => ({
-                file: expression.file || expression.File || '',
-                error: expressionManager!.expressions[index]! === null ? 'Failed to load' : undefined,
-            })) || [];
-
-            this.currentExpressionIndex = expressionManager?.expressions.indexOf(expressionManager!.currentExpression) ?? -1;
-            this.pendingExpressionIndex = expressionManager?.reserveExpressionIndex ?? -1;
-
-            pixiModel.on('expressionSet', this.expressionSet);
-            pixiModel.on('expressionReserved', this.expressionReserved);
-            motionManager.on('motionLoadError', this.motionLoadError);
-            expressionManager?.on('expressionLoadError', this.expressionLoadError);
-        },
-        expressionSet(index: number) {
-            this.currentExpressionIndex = index;
-        },
-        expressionReserved(index: number) {
-            this.pendingExpressionIndex = index;
-        },
-        motionLoadError(group: string, index: number, error: any) {
-            const motionGroup = this.motionGroups.find(motionGroup => motionGroup.name === group);
-
-            if (motionGroup) {
-                motionGroup.motions[index]!.error = error;
-            }
-        },
-        expressionLoadError(index: number, error: any) {
-            this.expressions[index]!.error = error;
-        },
-        startMotion(motionGroup: MotionGroupEntry, index: number) {
-            this.model?.pixiModel?.motion(motionGroup.name, index, MotionPriority.FORCE);
-        },
-        setExpression(index: number) {
-            this.model?.pixiModel?.expression(index);
-        },
-        updateMotionProgress() {
-            if (!(this.model?.pixiModel && this.motionState?.currentGroup !== undefined && this.motionExpand && this.visible && this.$el)) {
-                return;
-            }
-
-            const startTime = this.model.pixiModel.currentMotionStartTime;
-            const duration = this.model.pixiModel.currentMotionDuration;
-            const progress = clamp((this.model.pixiModel.elapsedTime - startTime) / duration, 0, 1);
-
-            // using a CSS variable can be a lot faster than letting Vue update a style object bound to the element
-            // since that will cause the component to re-render
-            (this.$el as HTMLElement).style.setProperty('--progress', progress * 100 + '%');
-        },
-    },
-    beforeUnmount() {
-        this.resetModel();
-        clearInterval(this.motionProgressTimerID);
-    },
+    visible: Boolean,
 });
+
+const appStore = useAppStore();
+
+const model = ref<ModelEntity | null | undefined>(null);
+const openedGroups = ref(['display']);
+const motionGroups = ref<MotionGroupEntry[]>([]);
+const motionState = ref<MotionState | null | undefined>(null);
+const motionProgressTimerID = ref(-1);
+
+const expressions = ref<ExpressionEntry[]>([]);
+const currentExpressionIndex = ref(-1);
+const pendingExpressionIndex = ref(-1);
+
+const filters = ref(Object.keys(Filter.filters));
+const rootElement = ref<HTMLElement | null>(null);
+
+const hasPixiModel = computed(() => !!motionState.value);
+const rotationDeg = computed(() => Math.round((model.value?.rotation || 0) / Math.PI * 180) + '°');
+const motionExpand = computed(() => openedGroups.value.includes('motions'));
+
+// Watchers
+watch(() => props.id, updateModel, { immediate: true });
+watch(() => model.value?.filters, () => model.value?.updateFilters());
+watch(() => motionState.value?.currentGroup, updateMotionProgress);
+
+onMounted(() => {
+    motionProgressTimerID.value = window.setInterval(updateMotionProgress, 50);
+});
+
+onBeforeUnmount(() => {
+    resetModel();
+    clearInterval(motionProgressTimerID.value);
+});
+
+function updateModel() {
+    resetModel();
+
+    model.value = appStore.getModel(props.id);
+
+    if (model.value) {
+        if (model.value.pixiModel) {
+            pixiModelLoaded(model.value.pixiModel);
+        } else {
+            model.value.once('modelLoaded', pixiModelLoaded);
+        }
+    }
+}
+
+function resetModel() {
+    if (model.value) {
+        model.value.off('modelLoaded', pixiModelLoaded);
+        model.value.pixiModel?.off('expressionSet', expressionSet);
+        model.value.pixiModel?.off('expressionReserved', expressionReserved);
+        model.value.pixiModel?.internalModel.motionManager?.off('motionLoadError', motionLoadError);
+        model.value.pixiModel?.internalModel.motionManager?.expressionManager?.off('expressionLoadError', expressionLoadError);
+
+        motionGroups.value = [];
+        motionState.value = undefined;
+        model.value = undefined;
+    }
+}
+
+function pixiModelLoaded(pixiModel: Live2DModel) {
+    const motionManager = pixiModel.internalModel.motionManager;
+    const groups: MotionGroupEntry[] = [];
+
+    const definitions = motionManager.definitions;
+
+    for (const [group, motions] of Object.entries(definitions)) {
+        groups.push({
+            name: group,
+            motions: motions?.map((motion, index) => ({
+                file: motion.file || motion.File || '',
+                error: motionManager.motionGroups[group]![index]! === null ? 'Failed to load' : undefined,
+            })) || [],
+        });
+    }
+
+    motionGroups.value = groups;
+    motionState.value = motionManager.state;
+
+    const expressionManager = motionManager.expressionManager;
+    expressions.value = expressionManager?.definitions.map((expression, index) => ({
+        file: expression.file || expression.File || '',
+        error: expressionManager!.expressions[index]! === null ? 'Failed to load' : undefined,
+    })) || [];
+
+    currentExpressionIndex.value = expressionManager?.expressions.indexOf(expressionManager!.currentExpression) ?? -1;
+    pendingExpressionIndex.value = expressionManager?.reserveExpressionIndex ?? -1;
+
+    pixiModel.on('expressionSet', expressionSet);
+    pixiModel.on('expressionReserved', expressionReserved);
+    motionManager.on('motionLoadError', motionLoadError);
+    expressionManager?.on('expressionLoadError', expressionLoadError);
+}
+
+function expressionSet(index: number) {
+    currentExpressionIndex.value = index;
+}
+
+function expressionReserved(index: number) {
+    pendingExpressionIndex.value = index;
+}
+
+function motionLoadError(group: string, index: number, error: unknown) {
+    const motionGroup = motionGroups.value.find(motionGroup => motionGroup.name === group);
+
+    if (motionGroup) {
+        motionGroup.motions[index]!.error = error;
+    }
+}
+
+function expressionLoadError(index: number, error: unknown) {
+    expressions.value[index]!.error = error;
+}
+
+function startMotion(motionGroup: MotionGroupEntry, index: number) {
+    model.value?.pixiModel?.motion(motionGroup.name, index, MotionPriority.FORCE);
+}
+
+function setExpression(index: number) {
+    model.value?.pixiModel?.expression(index);
+}
+
+function updateMotionProgress() {
+    if (!(model.value?.pixiModel && motionState.value?.currentGroup !== undefined && motionExpand.value && props.visible && rootElement.value)) {
+        return;
+    }
+
+    const startTime = model.value.pixiModel.currentMotionStartTime;
+    const duration = model.value.pixiModel.currentMotionDuration;
+    const progress = clamp((model.value.pixiModel.elapsedTime - startTime) / duration, 0, 1);
+
+    // using a CSS variable can be a lot faster than letting Vue update a style object bound to the element
+    // since that will cause the component to re-render
+    rootElement.value.style.setProperty('--progress', progress * 100 + '%');
+}
 </script>
 
 <style scoped lang="stylus">

@@ -1,4 +1,4 @@
-import { Live2DFactoryContext, Live2DModel as BaseLive2DModel } from 'pixi-live2d-display';
+import { ExpressionManager, Live2DFactoryContext, Live2DModel as BaseLive2DModel } from 'pixi-live2d-display';
 import { HitAreaFrames } from 'pixi-live2d-display/extra';
 import { Sprite } from '@pixi/sprite';
 import { Texture, Renderer } from '@pixi/core';
@@ -8,6 +8,10 @@ import './zip';
 import { Filter } from '@/app/Filter';
 
 BaseLive2DModel.registerTicker(Ticker);
+
+interface PatchedExpressionManager extends ExpressionManager {
+    _setExpression(expression: unknown): number;
+}
 
 export class Live2DModel extends BaseLive2DModel {
     factoryContext!: Live2DFactoryContext;
@@ -59,15 +63,15 @@ export class Live2DModel extends BaseLive2DModel {
             }
         });
 
-        const expressionManager = this.internalModel.motionManager.expressionManager;
+        const expressionManager = this.internalModel.motionManager.expressionManager as PatchedExpressionManager | undefined;
 
         if (expressionManager) {
-            const originalStartMotion = (expressionManager as any)._setExpression;
+            const originalStartMotion = expressionManager._setExpression;
 
-            (expressionManager as any)._setExpression = (expression: any) => {
+            expressionManager._setExpression = (expression: unknown) => {
                 originalStartMotion.call(expressionManager, expression);
 
-                this.emit('expressionSet', expressionManager.expressions.indexOf(expression));
+                this.emit('expressionSet', (expressionManager.expressions as unknown[]).indexOf(expression));
             };
 
             let reserveExpressionIndex = expressionManager.reserveExpressionIndex;

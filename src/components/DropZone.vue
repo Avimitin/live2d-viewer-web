@@ -4,69 +4,68 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { uploadFiles } from '@/app/upload';
 import { isDraggingFile, readFiles } from '@/utils/file';
 import { ExtendedFileList } from 'pixi-live2d-display';
 import { Background } from '@/tools/Background';
-import { App } from '@/app/App';
+import { useAppStore } from '@/store/app';
 
-export default defineComponent({
-    name: "DropZone",
+const emit = defineEmits(['create', 'error']);
+const appStore = useAppStore();
 
-    data: () => ({
-        draggingOver: false,
-    }),
-    created() {
-        document.ondragenter = e => isDraggingFile(e) && (this.draggingOver = true);
-        document.ondragleave = e => isDraggingFile(e) && (this.draggingOver = !!e.relatedTarget);
-        document.ondragover = e => isDraggingFile(e) && e.preventDefault();
-        document.ondrop = e => isDraggingFile(e) && this.drop(e);
-    },
-    methods: {
-        async drop(e: DragEvent) {
-            e.preventDefault();
+const draggingOver = ref(false);
 
-            this.draggingOver = false;
-
-            if (e.dataTransfer?.items.length) {
-                const files = await readFiles(e.dataTransfer.items);
-
-                if (files.length === 1 && files[0].type.includes('image')) {
-                    Background.set(files[0]).catch(console.warn);
-                } else {
-                    this.uploadModel(files).then();
-                }
-            }
-        },
-        async uploadModel(files: File[]) {
-            try {
-                const settingsArray = await uploadFiles(files);
-
-                let id: number;
-
-                if (settingsArray.length) {
-                    for (const settings of settingsArray) {
-                        const fileList = files.slice() as ExtendedFileList;
-
-                        fileList.settings = settings;
-
-                        id = App.addModel(fileList);
-                    }
-                } else {
-                    id = App.addModel(files);
-                }
-
-                this.$emit('create', id!);
-            } catch (e) {
-                (e as Error).message = 'Failed to load model: ' + (e as Error).message;
-
-                this.$emit('error', e);
-            }
-        },
-    },
+onMounted(() => {
+    document.ondragenter = e => isDraggingFile(e) && (draggingOver.value = true);
+    document.ondragleave = e => isDraggingFile(e) && (draggingOver.value = !!e.relatedTarget);
+    document.ondragover = e => isDraggingFile(e) && e.preventDefault();
+    document.ondrop = e => isDraggingFile(e) && drop(e);
 });
+
+async function drop(e: DragEvent) {
+    e.preventDefault();
+
+    draggingOver.value = false;
+
+    if (e.dataTransfer?.items.length) {
+        const files = await readFiles(e.dataTransfer.items);
+
+        if (files.length === 1 && files[0].type.includes('image')) {
+            Background.set(files[0]).catch(console.warn);
+        } else {
+            uploadModel(files).then();
+        }
+    }
+}
+
+async function uploadModel(files: File[]) {
+    try {
+        const settingsArray = await uploadFiles(files);
+
+        let id: number;
+
+        if (settingsArray.length) {
+            for (const settings of settingsArray) {
+                const fileList = files.slice() as ExtendedFileList;
+
+                fileList.settings = settings;
+
+                id = appStore.addModel(fileList);
+            }
+        } else {
+            id = appStore.addModel(files);
+        }
+
+        emit('create', id!);
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            e.message = 'Failed to load model: ' + e.message;
+        }
+        emit('error', e);
+    }
+}
 </script>
 
 <style scoped lang="stylus">

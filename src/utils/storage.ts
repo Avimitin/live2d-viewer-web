@@ -1,8 +1,8 @@
 export function save(key: string) {
-    return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    return function(target: object, propertyKey: string, descriptor: PropertyDescriptor) {
         const set = descriptor.set!;
 
-        descriptor.set = function(value: any) {
+        descriptor.set = function(value: unknown) {
             set.call(this, value);
             saveValue(key, value);
         };
@@ -12,11 +12,11 @@ export function save(key: string) {
     };
 }
 
-export function saveValue<T = any>(key: string, value: T) {
+export function saveValue<T = unknown>(key: string, value: T) {
     localStorage.setItem(key, JSON.stringify(value));
 }
 
-export function loadValue<T = any>(key: string, defaultValue: T): T {
+export function loadValue<T = unknown>(key: string, defaultValue: T): T {
     const data = localStorage.getItem(key);
 
     if (data === null) {

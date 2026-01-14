@@ -25,37 +25,35 @@
   </v-dialog>
 </template>
 
-<script lang="ts">
-import { App } from '@/app/App';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { useAppStore } from '@/store/app';
+import { ref, watch } from 'vue';
 
-export default defineComponent({
-    name: "ModelInfo",
-    props: {
-        modelValue: Boolean,
-        id: Number,
-    },
-    data: () => ({
-        url: '',
-        settingsJSON: '',
-    }),
-    watch: {
-        modelValue(value: boolean) {
-            if (value) {
-                const model = App.getModel(this.id);
-                const settings = model?.pixiModel?.internalModel.settings;
+const props = defineProps<{
+    modelValue: boolean;
+    id: number;
+}>();
 
-                this.url = model?.url || '';
-                this.settingsJSON = JSON.stringify(settings?.json || {}, null, 2);
-            }
-        },
-    },
-    methods: {
-        log() {
-            console.log(JSON.parse(this.settingsJSON));
-        },
-    },
+defineEmits(['update:modelValue']);
+
+const appStore = useAppStore();
+
+const url = ref('');
+const settingsJSON = ref('');
+
+watch(() => props.modelValue, (value) => {
+    if (value) {
+        const model = appStore.getModel(props.id);
+        const settings = model?.pixiModel?.internalModel.settings;
+
+        url.value = model?.url || '';
+        settingsJSON.value = JSON.stringify(settings?.json || {}, null, 2);
+    }
 });
+
+function log() {
+    console.log(JSON.parse(settingsJSON.value));
+}
 </script>
 
 <style scoped lang="stylus">

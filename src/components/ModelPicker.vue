@@ -51,76 +51,60 @@
   </v-dialog>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
 import { xor } from 'lodash-es';
 import { getFileURL, getRootNodes, loadRootNode, TreeNode } from '@/app/data';
 
-export default defineComponent({
-    name: "ModelPicker",
-    props: {
-        modelValue: Boolean,
-    },
+defineProps<{
+    modelValue: boolean;
+}>();
 
-    data: () => ({
-        search: '',
-        tree: getRootNodes(),
+const emit = defineEmits(['update:modelValue', 'select']);
 
-        openedFolders: [] as TreeNode[],
-        activeFolders: [] as TreeNode[],
-        selectedFileIndex: -1,
+const tree = ref(getRootNodes());
+const openedFolders = ref<TreeNode[]>([]);
+const activeFolders = ref<TreeNode[]>([]);
+const selectedFileIndex = ref(-1);
 
-        alert: '',
-    }),
-    computed: {
-        activeFolderFiles() {
-            return this.activeFolders.length ? this.activeFolders[0].files || [] : [];
-        },
-    },
-    watch: {
-        activeFolders(value: TreeNode[], oldValue: TreeNode[]) {
-            const hasChanged = xor(value, oldValue).length !== 0;
-
-            if (hasChanged) {
-                this.selectedFileIndex = -1;
-            }
-        },
-        selectedFileIndex() {
-            this.alert = '';
-        },
-    },
-    created() {
-    },
-    methods: {
-        async fetchModels(node: TreeNode) {
-            await loadRootNode(node);
-        },
-        folderOpened(openedFolders: TreeNode[]) {
-            const diff = xor(openedFolders, this.openedFolders);
-
-            if (diff.length) {
-                this.activeFolders = diff.slice(0);
-                this.openedFolders = openedFolders;
-            } else {
-                this.activeFolders = this.tree.slice(0, 1);
-            }
-        },
-        submit() {
-            if (this.activeFolders.length && this.selectedFileIndex >= 0) {
-                const file = getFileURL(this.activeFolders[0], this.activeFolderFiles[this.selectedFileIndex]);
-
-                if (file) {
-                    this.$emit('select', file);
-                }
-            }
-
-            this.$emit('update:modelValue', false);
-        },
-        log(...args: any[]) {
-            console.log(...args);
-        },
-    },
+const activeFolderFiles = computed(() => {
+    return activeFolders.value.length ? activeFolders.value[0].files || [] : [];
 });
+
+watch(activeFolders, (value: TreeNode[], oldValue: TreeNode[]) => {
+    const hasChanged = xor(value, oldValue).length !== 0;
+
+    if (hasChanged) {
+        selectedFileIndex.value = -1;
+    }
+});
+
+async function fetchModels(node: TreeNode) {
+    await loadRootNode(node);
+}
+
+function folderOpened(newOpenedFolders: TreeNode[]) {
+    const diff = xor(newOpenedFolders, openedFolders.value);
+
+    if (diff.length) {
+        activeFolders.value = diff.slice(0);
+        openedFolders.value = newOpenedFolders;
+    } else {
+        activeFolders.value = tree.value.slice(0, 1);
+    }
+}
+
+function submit() {
+    if (activeFolders.value.length && selectedFileIndex.value >= 0) {
+        const file = getFileURL(activeFolders.value[0], activeFolderFiles.value[selectedFileIndex.value]);
+
+        if (file) {
+            emit('select', file);
+        }
+    }
+
+    emit('update:modelValue', false);
+}
 </script>
 
 <style scoped lang="stylus">

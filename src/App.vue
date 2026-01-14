@@ -46,7 +46,7 @@
         <v-spacer></v-spacer>
         <ModelList v-model="selectedModelID" :show="modelList.visible"/>
       </v-container>
-      <ModelCreation v-model="creation.dialog" @create="selectedModelID=$event" @error="error"/>
+      <ModelCreation v-model="creation.dialog" @create="selectedModelID=$event" @error="onError"/>
       <ModelInfo v-model="modelInfoDialog" :id="selectedModelID"/>
     </v-main>
 
@@ -56,7 +56,7 @@
       </v-btn>
     </v-fab-transition>
 
-    <DropZone @create="selectedModelID=$event" @error="error"/>
+    <DropZone @create="selectedModelID=$event" @error="onError"/>
 
     <v-snackbar v-model="snackbar.visible" :timeout="snackbar.timeout">
       {{ snackbar.message }}
@@ -67,8 +67,8 @@
   </v-app>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { ref, computed, reactive, onMounted } from 'vue';
 import { useDisplay } from 'vuetify';
 import ModelList from './components/ModelList.vue';
 import ModelCreation from './components/ModelCreation.vue';
@@ -77,80 +77,69 @@ import DropZone from '@/components/DropZone.vue';
 import Settings from '@/components/Settings.vue';
 import ModelInfo from '@/components/ModelInfo.vue';
 import { Background } from '@/tools/Background';
-import { App } from '@/app/App';
+import { useAppStore } from '@/store/app';
 
-export default defineComponent({
-    name: 'App',
-    components: { ModelList, ModelCreation, ModelEditor, DropZone, ModelInfo, Settings },
-    setup() {
-        const display = useDisplay();
-        return { display };
-    },
-    data: () => ({
-        drawer: true,
-        drawerSwitch: false,
-        loading: false,
+const appStore = useAppStore();
+const display = useDisplay();
 
-        tab: -1 as number | undefined,
+const drawer = ref(true);
+const drawerSwitch = ref(false);
+const tab = ref<number | undefined>(-1);
 
-        modelList: {
-            visible: true,
-        },
+const modelList = reactive({
+    visible: true,
+});
 
-        selectedModelID: 0,
+const selectedModelID = ref(0);
+const modelInfoDialog = ref(false);
 
-        modelInfoDialog: false,
+const creation = reactive({
+    dialog: false,
+    result: null,
+});
 
-        creation: {
-            dialog: false,
-            result: null,
-        },
+const snackbar = reactive({
+    visible: false,
+    message: '',
+    timeout: 5000,
+});
 
-        snackbar: {
-            visible: false,
-            message: '',
-            timeout: 5000,
-        },
-    }),
-    computed: {
-        drawerWidth() {
-            return this.display.xl ? 450 : 360;
-        },
-        modelName() {
-            return App.getModel(this.selectedModelID)?.name || '';
-        },
-    },
-    methods: {
-        showUI(show: boolean) {
-            this.drawer = show;
-            this.modelList.visible = show;
-            this.drawerSwitch = false;
-        },
-        snack(message: string, timeout: number = 5000) {
-            this.snackbar.message = message;
-            this.snackbar.timeout = timeout;
-            this.snackbar.visible = true;
-        },
-        error(e: any) {
-            const message = e && e.message || e + '';
+const drawerWidth = computed(() => {
+    return display.xl.value ? 450 : 360;
+});
 
-            if (message) {
-                this.snack(message, -1);
-            }
-        },
-        log(...args: any[]) {
-            console.log(...args);
-        },
-    },
-    created() {
-        // switch to the default tab
-        this.tab = undefined;
-        this.creation.dialog = true;
+const modelName = computed(() => {
+    return appStore.getModel(selectedModelID.value)?.name || '';
+});
 
-        if (!Background.current) {
-            this.snack('Drag and drop a local image to set the background!');
-        }
-    },
+function showUI(show: boolean) {
+    drawer.value = show;
+    modelList.visible = show;
+    drawerSwitch.value = false;
+}
+
+function snack(message: string, timeout: number = 5000) {
+    snackbar.message = message;
+    snackbar.timeout = timeout;
+    snackbar.visible = true;
+}
+
+function onError(e: unknown) {
+    const message = (e instanceof Error ? e.message : String(e)) || '';
+
+    if (message) {
+        snack(message, -1);
+    }
+}
+
+// Initial setup
+onMounted(() => {
+    tab.value = undefined;
+    creation.dialog = true;
+
+    if (!Background.current) {
+        snack('Drag and drop a local image to set the background!');
+    }
 });
 </script>
 
