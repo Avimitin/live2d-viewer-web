@@ -20,7 +20,9 @@
           <v-spacer></v-spacer>
 
           <input type="file" ref="fileInput" multiple style="display: none" @change="onFileChange" accept=".json,.moc,.moc3,.png,.jpg,.jpeg,.zip,.mtn,.motion3.json,.physics.json,.physics3.json,.pose.json,.pose3.json">
-          <v-btn color="blue-grey" class="mr-4" @click="fileInput?.click()">Open Files <v-icon right>mdi-folder-open</v-icon></v-btn>
+          <input type="file" ref="folderInput" webkitdirectory directory style="display: none" @change="onFileChange">
+          <v-btn color="blue-grey" class="mr-4" @click="fileInput?.click()">Open Files <v-icon right>mdi-file-multiple</v-icon></v-btn>
+          <v-btn color="blue-grey" class="mr-4" @click="folderInput?.click()">Open Folder <v-icon right>mdi-folder-open</v-icon></v-btn>
 
           <v-btn color="blue-grey" @click="picker.dialog=true">From source...<v-icon right>
             mdi-cloud-search</v-icon>
@@ -59,6 +61,7 @@ const picker = reactive({
 const urlError = ref(false);
 const urlMessages = ref<string[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
+const folderInput = ref<HTMLInputElement | null>(null);
 
 watch(url, (value) => {
     const message = validateURL(value) || '';
