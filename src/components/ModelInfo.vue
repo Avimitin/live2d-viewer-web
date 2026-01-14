@@ -1,18 +1,18 @@
 <template>
-  <v-dialog width="1000" max-width="90vw" :value="value" @input="$emit('input',$event)">
+  <v-dialog width="1000" max-width="90vw" :model-value="modelValue" @update:model-value="$emit('update:modelValue',$event)">
     <v-card height="90vh" class="d-flex flex-column">
       <v-toolbar color="primary" flat dense class="flex-grow-0">
         <v-toolbar-title>Model Info</v-toolbar-title>
         <v-spacer></v-spacer>
 
         <v-tooltip bottom>
-          <template v-slot:activator="{ on, attrs }">
-            <v-btn icon @click="log" v-bind="attrs" v-on="on"><v-icon>mdi-console</v-icon></v-btn>
+          <template v-slot:activator="{ props }">
+            <v-btn icon @click="log" v-bind="props"><v-icon>mdi-console</v-icon></v-btn>
           </template>
           <span>Print to console</span>
         </v-tooltip>
 
-        <v-btn icon @click="$emit('input',false)">
+        <v-btn icon @click="$emit('update:modelValue',false)">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
@@ -27,12 +27,12 @@
 
 <script lang="ts">
 import { App } from '@/app/App';
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
-export default Vue.extend({
+export default defineComponent({
     name: "ModelInfo",
     props: {
-        value: Boolean,
+        modelValue: Boolean,
         id: Number,
     },
     data: () => ({
@@ -40,7 +40,7 @@ export default Vue.extend({
         settingsJSON: '',
     }),
     watch: {
-        value(value: boolean) {
+        modelValue(value: boolean) {
             if (value) {
                 const model = App.getModel(this.id);
                 const settings = model?.pixiModel?.internalModel.settings;

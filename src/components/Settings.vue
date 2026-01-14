@@ -10,7 +10,7 @@
 
       <template v-if="currentBackground">
         <v-divider></v-divider>
-        <v-subheader class="px-0">Background</v-subheader>
+        <v-list-subheader class="px-0">Background</v-list-subheader>
         <div class="mt-2 d-flex align-center">
           <span>{{ currentBackground }}</span>
           <v-spacer></v-spacer>
@@ -31,11 +31,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { Background } from '@/tools/Background';
 import { App } from '@/app/App';
 
-export default Vue.extend({
+export default defineComponent({
     name: "Settings",
     data: () => ({
         volume: 0,
@@ -75,7 +75,7 @@ export default Vue.extend({
             this.currentBackground = background;
         },
     },
-    beforeDestroy() {
+    beforeUnmount() {
         Background.emitter.off('change', this.backgroundChanged);
     },
 });

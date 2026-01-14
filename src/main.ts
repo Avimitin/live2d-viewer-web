@@ -1,20 +1,20 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
 import VueApp from './App.vue';
 import vuetify from './plugins/vuetify';
 import { config } from 'pixi-live2d-display';
 import { App } from '@/app/App';
 
-Vue.config.productionTip = false;
+const app = createApp(VueApp);
 
-Vue.directive('visible', function(el, binding) {
+app.use(vuetify);
+
+app.directive('visible', (el, binding) => {
     el.style.visibility = !!binding.value ? 'visible' : 'hidden';
 });
 
-(window as any).vueApp = new (Vue as any)({
-    vuetify,
-    render: (h: any) => h(VueApp),
-}).$mount('#app');
+app.mount('#app');
 
+(window as any).vueApp = app;
 (window as any).App = App;
 (window as any).config = config;
 

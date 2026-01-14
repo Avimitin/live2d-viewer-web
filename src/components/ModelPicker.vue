@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :value="value" @input="$emit('input',$event)" width="1500" max-width="90vw">
+  <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue',$event)" width="1500" max-width="90vw">
     <v-card height="1000" max-height="90vh" class="d-flex flex-column">
       <v-toolbar color="primary" flat dense class="flex-grow-0">
         <v-toolbar-title>Select a Model</v-toolbar-title>
@@ -52,14 +52,14 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { xor } from 'lodash-es';
 import { getFileURL, getRootNodes, loadRootNode, TreeNode } from '@/app/data';
 
-export default Vue.extend({
+export default defineComponent({
     name: "ModelPicker",
     props: {
-        value: Boolean,
+        modelValue: Boolean,
     },
 
     data: () => ({
@@ -114,7 +114,7 @@ export default Vue.extend({
                 }
             }
 
-            this.$emit('input', false);
+            this.$emit('update:modelValue', false);
         },
         log(...args: any[]) {
             console.log(...args);

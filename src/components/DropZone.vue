@@ -5,14 +5,14 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { uploadFiles } from '@/app/upload';
 import { isDraggingFile, readFiles } from '@/utils/file';
 import { ExtendedFileList } from 'pixi-live2d-display';
 import { Background } from '@/tools/Background';
 import { App } from '@/app/App';
 
-export default Vue.extend({
+export default defineComponent({
     name: "DropZone",
 
     data: () => ({

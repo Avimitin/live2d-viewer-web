@@ -1,14 +1,14 @@
 <template>
   <v-slide-y-reverse-transition>
     <v-sheet v-if="show&&models.length" class="model-list" width="100%">
-      <v-item-group mandatory class="flex-grow-1" :value="selectedIndex" @change="select">
+      <v-item-group mandatory class="flex-grow-1" :model-value="selectedIndex" @update:model-value="select">
         <transition-group class="model-group d-flex pa-1 pa-xl-2" name="move">
-          <v-item v-for="(model,i) in models" :key="model.id" v-slot="{ active, toggle }">
-            <v-card :color="model.error?'#631f1f':active?'grey darken-2':'grey darken-3'" class="ma-1 ma-xl-2" @click="toggle">
+          <v-item v-for="(model,i) in models" :key="model.id" v-slot="{ isSelected, toggle }">
+            <v-card :color="model.error?'#631f1f':isSelected?'grey darken-2':'grey darken-3'" class="ma-1 ma-xl-2" @click="toggle">
               <v-tooltip top :disabled="!model.error">
-                <template v-slot:activator="{ on, attrs }">
+                <template v-slot:activator="{ props }">
                   <v-img :src="model.thumbnail" :width="model.error?paneHeight:model.aspectRatio*paneHeight" :height="paneHeight"
-                         v-bind="attrs" v-on="on">
+                         v-bind="props">
                     <template v-slot:placeholder>
                       <v-row class="fill-height ma-0" align="center" justify="center">
                         <v-progress-circular v-if="!model.error" indeterminate
@@ -20,7 +20,7 @@
                     <v-card-title class="ml-1 pa-0 flex-nowrap text-subtitle-2 text-xl-subtitle-1">
                       <span class="model-item-title text-truncate">{{ '#' + model.id + ' ' + model.name }}</span>
                       <v-spacer></v-spacer>
-                      <v-btn icon v-if="active" @click.stop="remove(model.id)"><v-icon size="20">mdi-close</v-icon>
+                      <v-btn icon v-if="isSelected" @click.stop="remove(model.id)"><v-icon size="20">mdi-close</v-icon>
                       </v-btn>
                     </v-card-title>
                   </v-img>
@@ -36,25 +36,30 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
+import { useDisplay } from 'vuetify';
 import { ModelEntity } from '@/app/ModelEntity';
 import { App } from '@/app/App';
 
-export default Vue.extend({
+export default defineComponent({
     name: "ModelList",
     props: {
-        value: Number,
+        modelValue: Number,
         show: Boolean,
+    },
+    setup() {
+        const display = useDisplay();
+        return { display };
     },
     data: () => ({
         models: [] as ModelEntity[],
     }),
     computed: {
         paneHeight() {
-            return this.$vuetify.breakpoint.xl ? 192 : 144;
+            return this.display.xl ? 192 : 144;
         },
         selectedIndex() {
-            return this.models.findIndex(model => model.id === this.value);
+            return this.models.findIndex(model => model.id === this.modelValue);
         },
     },
     created() {
@@ -64,11 +69,11 @@ export default Vue.extend({
         select(index: number) {
             const id = this.models[index]?.id ?? 0;
 
-            this.$emit('input', id);
+            this.$emit('update:modelValue', id);
         },
         remove(id: number) {
             if (this.models.length === 1) {
-                this.$emit('input', 0);
+                this.$emit('update:modelValue', 0);
             }
 
             App.removeModel(id);

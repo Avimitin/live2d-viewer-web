@@ -24,9 +24,9 @@
             </v-btn>
           </div>
           <v-tooltip top :disabled="!selectedModelID">
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <div :class="['model-name mt-2 text-h5',{valid:selectedModelID}]"
-                   @click="selectedModelID&&(modelInfoDialog=true)" v-bind="attrs" v-on="on">
+                   @click="selectedModelID&&(modelInfoDialog=true)" v-bind="props">
                 {{ selectedModelID ? modelName : 'Press + to create a model' }}
               </div>
             </template>
@@ -46,7 +46,7 @@
         <v-spacer></v-spacer>
         <ModelList v-model="selectedModelID" :show="modelList.visible"/>
       </v-container>
-      <ModelCreation v-model="creation.dialog" @create="selectedModelID=$event"/>
+      <ModelCreation v-model="creation.dialog" @create="selectedModelID=$event" @error="error"/>
       <ModelInfo v-model="modelInfoDialog" :id="selectedModelID"/>
     </v-main>
 
@@ -68,7 +68,8 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
+import { useDisplay } from 'vuetify';
 import ModelList from './components/ModelList.vue';
 import ModelCreation from './components/ModelCreation.vue';
 import ModelEditor from '@/components/ModelEditor.vue';
@@ -78,9 +79,13 @@ import ModelInfo from '@/components/ModelInfo.vue';
 import { Background } from '@/tools/Background';
 import { App } from '@/app/App';
 
-export default Vue.extend({
+export default defineComponent({
     name: 'App',
     components: { ModelList, ModelCreation, ModelEditor, DropZone, ModelInfo, Settings },
+    setup() {
+        const display = useDisplay();
+        return { display };
+    },
     data: () => ({
         drawer: true,
         drawerSwitch: false,
@@ -109,7 +114,7 @@ export default Vue.extend({
     }),
     computed: {
         drawerWidth() {
-            return this.$vuetify.breakpoint.xl ? 450 : 360;
+            return this.display.xl ? 450 : 360;
         },
         modelName() {
             return App.getModel(this.selectedModelID)?.name || '';
@@ -150,14 +155,14 @@ export default Vue.extend({
 </script>
 
 <style scoped lang="stylus">
->>> .v-navigation-drawer__content
+:deep(.v-navigation-drawer__content)
   display flex
   flex-direction column
 
   .v-toolbar
     flex-grow initial !important
 
->>> .v-toolbar__content
+:deep(.v-toolbar__content)
   padding-left 12px
   padding-right 12px
 

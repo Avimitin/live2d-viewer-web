@@ -4,6 +4,7 @@ import { save } from '@/utils/storage';
 import Stats from 'stats.js';
 import { PixiApp } from '@/app/PixiApp';
 import { Live2DModel } from '@/app/Live2DModel';
+import { reactive } from 'vue';
 
 const stats = new Stats();
 stats.showPanel(0);
@@ -11,7 +12,7 @@ stats.dom.style.left = '';
 stats.dom.style.right = '0';
 
 export class App {
-    static models: ModelEntity[] = [];
+    static models = reactive<ModelEntity[]>([]);
 
     static pixiApp = new PixiApp(stats);
 

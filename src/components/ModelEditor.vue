@@ -1,11 +1,9 @@
 <template>
   <div class="model-editor" v-if="model">
-    <v-list expand v-if="hasPixiModel">
-      <v-list-group :value="true">
-        <template v-slot:activator>
-          <v-list-item-content>
-            <v-list-item-title>Display</v-list-item-title>
-          </v-list-item-content>
+    <v-list expand v-if="hasPixiModel" v-model:opened="openedGroups">
+      <v-list-group value="display">
+        <template v-slot:activator="{ props }">
+          <v-list-item v-bind="props" title="Display"></v-list-item>
         </template>
 
         <v-list-item>
@@ -20,43 +18,42 @@
         </v-list-item>
       </v-list-group>
 
-      <v-list-group :data-set="motionCount=motionGroups.reduce((sum, { motions }) => sum + motions.length, 0)"
-          :disabled="!motionCount" v-model="motionExpand">
-        <template v-slot:activator>
-          <v-list-item-content>
+      <v-list-group value="motions" :data-set="motionCount=motionGroups.reduce((sum, { motions }) => sum + motions.length, 0)">
+        <template v-slot:activator="{ props }">
+          <v-list-item v-bind="props">
             <v-list-item-title :class="{'text--secondary':!motionCount}">Motions ({{ motionCount }})
             </v-list-item-title>
-          </v-list-item-content>
+          </v-list-item>
         </template>
 
         <template v-slot:default>
-          <template v-for="motionGroup in motionGroups">
-            <v-subheader :key="motionGroup.name" class="px-3">{{ motionGroup.name || '(Nameless)' }}</v-subheader>
+          <template v-for="motionGroup in motionGroups" :key="motionGroup.name">
+            <v-list-subheader class="px-3">{{ motionGroup.name || '(Nameless)' }}</v-list-subheader>
             <v-list-item ripple v-for="(motion,i) in motionGroup.motions" :key="motionGroup.name+i"
                 :data-set="active=motionState.currentGroup===motionGroup.name&&motionState.currentIndex===i"
                 :disabled="!!motion.error" @click="startMotion(motionGroup,i)">
               <div v-if="active" class="motion-progress"></div>
-              <v-list-item-content :title="motion.file">
+              <v-list-item-content>
                 <v-list-item-title :class="{'primary--text':active,'text-decoration-line-through':motion.error}">
                   {{ motion.file.replace('.mtn', '').replace('.motion3.json', '') }}
                 </v-list-item-title>
               </v-list-item-content>
-              <v-list-item-icon class="my-0 align-self-center">
+              <template v-slot:append>
                 <v-icon size="32" color="primary" v-if="active">mdi-play</v-icon>
                 <v-progress-circular indeterminate size="20" width="2" v-else-if="(motionState.reservedGroup===motionGroup.name&&motionState.reservedIndex===i)
                     ||(motionState.reservedIdleGroup===motionGroup.name&&motionState.reservedIdleIndex===i)" />
-              </v-list-item-icon>
+              </template>
             </v-list-item>
           </template>
         </template>
       </v-list-group>
 
-      <v-list-group :disabled="!expressions.length">
-        <template v-slot:activator>
-          <v-list-item-content>
+      <v-list-group value="expressions">
+        <template v-slot:activator="{ props }">
+           <v-list-item v-bind="props">
             <v-list-item-title :class="{'text--secondary':!expressions.length}">Expressions ({{ expressions.length }})
             </v-list-item-title>
-          </v-list-item-content>
+          </v-list-item>
         </template>
 
         <template v-slot:default>
@@ -66,24 +63,22 @@
               :data-set="active=currentExpressionIndex===i"
               :disabled="!!expression.error"
               @click="setExpression(i)">
-            <v-list-item-content :title="expression.file">
+            <v-list-item-content>
               <v-list-item-title :class="{'primary--text':active,'text-decoration-line-through':expression.error}">
                 {{ expression.file.replace('.exp.json', '').replace('.exp3.json', '') }}
               </v-list-item-title>
             </v-list-item-content>
-            <v-list-item-icon class="my-0 align-self-center">
+            <template v-slot:append>
               <v-icon size="28" color="primary" v-if="active">mdi-emoticon-outline</v-icon>
               <v-progress-circular indeterminate size="20" width="2" v-else-if="pendingExpressionIndex===i" />
-            </v-list-item-icon>
+            </template>
           </v-list-item>
         </template>
       </v-list-group>
 
-      <v-list-group>
-        <template v-slot:activator>
-          <v-list-item-content>
-            <v-list-item-title>Filters</v-list-item-title>
-          </v-list-item-content>
+      <v-list-group value="filters">
+        <template v-slot:activator="{ props }">
+          <v-list-item v-bind="props" title="Filters"></v-list-item>
         </template>
 
         <div class="mt-3"></div>
@@ -107,7 +102,7 @@ import { Live2DModel } from '@/app/Live2DModel';
 import { ModelEntity } from '@/app/ModelEntity';
 import { clamp } from 'lodash-es';
 import { MotionPriority, MotionState } from 'pixi-live2d-display';
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 interface MotionGroupEntry {
     name: string
@@ -122,7 +117,7 @@ interface ExpressionEntry {
     error?: any;
 }
 
-export default Vue.extend({
+export default defineComponent({
     name: 'ModelEditor',
     props: {
         id: {
@@ -134,7 +129,7 @@ export default Vue.extend({
     data: () => ({
         model: null as ModelEntity | null | undefined,
 
-        motionExpand: false,
+        openedGroups: ['display'], // Default open 'display'
         motionGroups: [] as MotionGroupEntry[],
         motionState: null as MotionState | null | undefined,
 
@@ -153,6 +148,9 @@ export default Vue.extend({
         rotationDeg(): string {
             return Math.round((this.model?.rotation || 0) / Math.PI * 180) + '°';
         },
+        motionExpand(): boolean {
+            return this.openedGroups.includes('motions');
+        }
     },
     watch: {
         id: {
@@ -267,7 +265,7 @@ export default Vue.extend({
             (this.$el as HTMLElement).style.setProperty('--progress', progress * 100 + '%');
         },
     },
-    beforeDestroy() {
+    beforeUnmount() {
         this.resetModel();
         clearInterval(this.motionProgressTimerID);
     },
@@ -275,7 +273,7 @@ export default Vue.extend({
 </script>
 
 <style scoped lang="stylus">
->>> .v-list-item
+:deep(.v-list-item)
     padding 0 12px !important
 
 .motion-progress
